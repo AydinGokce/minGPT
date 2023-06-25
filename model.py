@@ -31,9 +31,19 @@ class SingleHeadAttention(nn.Module):
         return weights @ self.val(X) # (B, T, T) @ (B, T, head_size) -> (B, T, head_size)
     
 
+class MultiHeadAttention(nn.Module):
+    def __init__(self, n_heads, embedding_size, head_size, context_length):
+        super().__init__()
+        self.heads = nn.ModuleList([SingleHeadAttention(embedding_size, head_size, context_length) for _ in range(n_heads)])
+
+    
+    def forward(self, X):
+        return torch.concatenate([head(X) for head in self.heads], dim = -1)
+    
+
 class BigramLanguageModel(nn.Module):
 
-    def __init__(self, vocab_size, embedding_size, context_length, device):
+    def __init__(self, vocab_size, embedding_size, context_length, device, n_heads):
         super().__init__()
         self.context_length = context_length
         self.embedding_size = embedding_size
@@ -45,7 +55,7 @@ class BigramLanguageModel(nn.Module):
         self.readout_head = nn.Linear(embedding_size, vocab_size)
     
         # single-head attention
-        self.single_head_attention = SingleHeadAttention(embedding_size, embedding_size, context_length) # TODO according to karpathy these don't have to be the same size
+        self.multi_head_attention = MultiHeadAttention(n_heads, embedding_size, embedding_size // n_heads, context_length) # TODO according to karpathy these don't have to be the same size
     
         
     def forward(self, X, y = None):
@@ -53,7 +63,7 @@ class BigramLanguageModel(nn.Module):
         token_embeddings = self.embedding_table(X) # (B, T, embedding_size)
         pos_embeddings = self.positional_embedding_table(torch.arange(self.context_length, device=self.device))
         x = token_embeddings + pos_embeddings
-        x = self.single_head_attention(x)
+        x = self.multi_head_attention(x)
 
         logits = self.readout_head(x) # (B, T, embedding_size) @ (embedding_size, vocab_size) -> (B, T, vocab_size)
 
