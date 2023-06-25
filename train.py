@@ -21,6 +21,8 @@ def main():
     batch_size = 128
     train_test_split = 0.9
     num_epochs = 10000
+    head_size = 16
+    embedding_size = 32
     device = 'cuda' if torch.cuda.is_available else 'cpu'
     logging.info(f"using device {device}")
 
@@ -35,7 +37,7 @@ def main():
     test_enc = enc.encode(test_raw)
 
     ######## TRAIN ########
-    model = BigramLanguageModel(len(enc.vocabulary)).to(device)
+    model = BigramLanguageModel(len(enc.vocabulary), embedding_size, context_length, device).to(device)
 
     optimizer = torch.optim.AdamW(model.parameters(), lr=1e-3)
 
@@ -55,8 +57,8 @@ def main():
 
     ######## TEST #########
     sample_x, sample_y = get_batch(test_enc, batch_size, context_length)
-    
-    gen = model.generate(sample_x.to(device), 100)[0]
+    input("training complete. press any key to see the output")
+    gen = model.generate(sample_x.to(device), 1000)[0]
     print(enc.decode(gen.cpu().tolist()))
 
 
