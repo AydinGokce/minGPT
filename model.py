@@ -32,10 +32,10 @@ class SingleHeadAttention(nn.Module):
     
 
 class MultiHeadAttention(nn.Module):
-    def __init__(self, n_heads, embedding_size, head_size, context_length):
+    def __init__(self, n_heads, embedding_size, head_size, context_length, projection_factor = 4):
         super().__init__()
-        self.heads = nn.ModuleList([SingleHeadAttention(embedding_size, head_size, context_length) for _ in range(n_heads)])
-        self.proj = nn.Linear(embedding_size, embedding_size)
+        self.heads = nn.ModuleList([SingleHeadAttention(embedding_size, head_size * projection_factor, context_length) for _ in range(n_heads)])
+        self.proj = nn.Linear(embedding_size * projection_factor, embedding_size)
     
     def forward(self, X):
         out = torch.concatenate([head(X) for head in self.heads], dim = -1)
@@ -43,12 +43,12 @@ class MultiHeadAttention(nn.Module):
 
 
 class FeedForward(nn.Module):
-    def __init__(self, in_ch, out_ch):
+    def __init__(self, in_ch, out_ch, projection_factor = 4):
         super().__init__()
         self.linear = nn.Sequential(
-            nn.Linear(in_ch, out_ch),
+            nn.Linear(in_ch, out_ch * projection_factor),
             nn.ReLU(),
-            nn.Linear(in_ch, out_ch)
+            nn.Linear(out_ch * projection_factor, out_ch)
         )
 
     def forward(self, X):
