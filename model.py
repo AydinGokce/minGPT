@@ -39,7 +39,20 @@ class MultiHeadAttention(nn.Module):
     
     def forward(self, X):
         return torch.concatenate([head(X) for head in self.heads], dim = -1)
-    
+
+
+class FeedForward(nn.Module):
+    def __init__(self, in_ch, out_ch):
+        super().__init__()
+        self.linear = nn.Sequential(
+            nn.Linear(in_ch, out_ch),
+            nn.ReLU()
+        )
+
+    def forward(self, X):
+        return self.linear(X)
+
+
 
 class BigramLanguageModel(nn.Module):
 
@@ -57,6 +70,8 @@ class BigramLanguageModel(nn.Module):
         # single-head attention
         self.multi_head_attention = MultiHeadAttention(n_heads, embedding_size, embedding_size // n_heads, context_length) # TODO according to karpathy these don't have to be the same size
     
+        # feed-forward
+        self.feed_forward = FeedForward(embedding_size, embedding_size)
         
     def forward(self, X, y = None):
 
@@ -64,7 +79,7 @@ class BigramLanguageModel(nn.Module):
         pos_embeddings = self.positional_embedding_table(torch.arange(self.context_length, device=self.device))
         x = token_embeddings + pos_embeddings
         x = self.multi_head_attention(x)
-
+        x = self.feed_forward(x)
         logits = self.readout_head(x) # (B, T, embedding_size) @ (embedding_size, vocab_size) -> (B, T, vocab_size)
 
         loss = None
