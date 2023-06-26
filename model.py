@@ -53,6 +53,18 @@ class FeedForward(nn.Module):
         return self.linear(X)
 
 
+class Block(nn.Module):
+
+    def __init__(self, n_heads, embedding_size, head_size, context_length):
+        super().__init__()
+        self.block = nn.Sequential(
+            MultiHeadAttention(n_heads, embedding_size, head_size, context_length),
+            FeedForward(embedding_size, embedding_size)
+        )
+
+    def forward(self, X):
+        return self.block(X)
+
 
 class BigramLanguageModel(nn.Module):
 
@@ -67,19 +79,15 @@ class BigramLanguageModel(nn.Module):
         self.positional_embedding_table = nn.Embedding(context_length, embedding_size)
         self.readout_head = nn.Linear(embedding_size, vocab_size)
     
-        # single-head attention
-        self.multi_head_attention = MultiHeadAttention(n_heads, embedding_size, embedding_size // n_heads, context_length) # TODO according to karpathy these don't have to be the same size
-    
-        # feed-forward
-        self.feed_forward = FeedForward(embedding_size, embedding_size)
+        # multi-head attention and feed-forward
+        self.block = Block(n_heads, embedding_size, embedding_size // n_heads, context_length)
         
     def forward(self, X, y = None):
 
         token_embeddings = self.embedding_table(X) # (B, T, embedding_size)
         pos_embeddings = self.positional_embedding_table(torch.arange(self.context_length, device=self.device))
         x = token_embeddings + pos_embeddings
-        x = self.multi_head_attention(x)
-        x = self.feed_forward(x)
+        self.block(x)
         logits = self.readout_head(x) # (B, T, embedding_size) @ (embedding_size, vocab_size) -> (B, T, vocab_size)
 
         loss = None
